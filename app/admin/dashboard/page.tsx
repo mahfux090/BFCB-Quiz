@@ -107,6 +107,7 @@ export default function AdminDashboard() {
       const response = await fetch("/api/admin/responses")
       if (response.ok) {
         const { responses } = await response.json()
+        console.log("Fetched responses from API:", responses) // Add this line
         setResponses(responses)
       }
     } catch (error) {
@@ -536,6 +537,8 @@ export default function AdminDashboard() {
             <div className="space-y-4">
               {responses.map((response) => (
                 <Card key={response.id} className="bg-white/90 border-gray-200">
+                  {console.log("Rendering response ID:", response.id, "Evaluations:", response.evaluations)}{" "}
+                  {/* Add this line */}
                   <CardHeader>
                     <div className="flex justify-between items-start">
                       <div>
