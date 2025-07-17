@@ -107,7 +107,7 @@ export default function AdminDashboard() {
       const response = await fetch("/api/admin/responses")
       if (response.ok) {
         const { responses } = await response.json()
-        console.log("Fetched responses from API:", responses) // Add this line
+        console.log("Fetched responses from API:", responses)
         setResponses(responses)
       }
     } catch (error) {
@@ -537,8 +537,7 @@ export default function AdminDashboard() {
             <div className="space-y-4">
               {responses.map((response) => (
                 <Card key={response.id} className="bg-white/90 border-gray-200">
-                  {console.log("Rendering response ID:", response.id, "Evaluations:", response.evaluations)}{" "}
-                  {/* Add this line */}
+                  {console.log("Rendering response ID:", response.id, "Evaluations:", response.evaluations)}
                   <CardHeader>
                     <div className="flex justify-between items-start">
                       <div>
@@ -575,7 +574,19 @@ export default function AdminDashboard() {
                       </div>
                     </div>
 
-                    {!response.evaluations || response.evaluations.length === 0 ? (
+                    {console.log(
+                      "Condition check for response ID:",
+                      response.id,
+                      "Is evaluated:",
+                      !response.evaluations || response.evaluations.length === 0,
+                    )}
+                    {console.log(
+                      "Condition for response ID:",
+                      response.id,
+                      "is response.evaluations.length === 0:",
+                      response.evaluations.length === 0,
+                    )}
+                    {response.evaluations.length === 0 ? (
                       <Dialog
                         open={evaluatingResponse === response.id}
                         onOpenChange={(open) => !open && setEvaluatingResponse(null)}
