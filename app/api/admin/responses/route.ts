@@ -26,8 +26,12 @@ export async function GET() {
       .order("submitted_at", { ascending: false })
 
     if (error) {
+      console.error("Supabase query error:", error) // Log Supabase specific error details
       throw error
     }
+
+    console.log("Data fetched from Supabase in API route:", responses) // Log the raw data array
+    console.log("Number of responses fetched:", responses?.length) // Log the count of items
 
     return NextResponse.json({ responses })
   } catch (error) {
