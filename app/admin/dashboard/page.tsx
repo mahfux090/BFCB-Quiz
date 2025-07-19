@@ -121,8 +121,9 @@ export default function AdminDashboard() {
       const response = await fetch("/api/admin/responses")
       if (response.ok) {
         const { responses } = await response.json()
-        console.log("Fetched responses from API:", responses)
+        console.log("Fetched responses from API (inside fetchResponses - client):", responses) // এই লগটি যোগ করুন
         setResponses(responses)
+        console.log("Responses state updated (inside fetchResponses - client):", responses) // এই লগটি যোগ করুন
       }
     } catch (error) {
       console.error("Error fetching responses:", error)
@@ -264,7 +265,7 @@ export default function AdminDashboard() {
       })
 
       if (response.ok) {
-        await fetchResponses()
+        await fetchResponses() // This should refetch the updated list
         await fetchMeritList()
         setEvaluatingResponse(null)
         setEvaluationData({ score: 5, status: "correct", admin_notes: "" })
@@ -1264,7 +1265,7 @@ export default function AdminDashboard() {
 
       {/* Delete Confirmation Dialog */}
       <Dialog open={showDeleteConfirm} onOpenChange={setShowDeleteConfirm}>
-        <DialogContent className="bg-white border-gray-200 text-gray-900 max-w-sm">
+        <DialogContent className="bg-white border-gray-200 text-gray-900 max-sm">
           <DialogHeader>
             <DialogTitle className="text-red-600">Confirm Deletion</DialogTitle>
             <DialogDescription className="text-gray-600">
