@@ -58,26 +58,7 @@ npm install
 npm run dev
 \`\`\`
 
-### 4. Admin Access
-- Username: `admin`
-- Password: `bfcb2024`
-
-## Project Structure
-
-\`\`\`
-├── app/
-│   ├── api/                 # API routes
-│   ├── admin/              # Admin pages
-│   ├── quiz/               # Quiz interface
-│   ├── thank-you/          # Completion page
-│   └── page.tsx            # Home page
-├── components/ui/          # Reusable UI components (shadcn/ui)
-├── lib/                    # Utilities and configurations
-├── scripts/                # Database scripts
-└── public/                 # Static assets
-\`\`\`
-
-## Key Features Implemented
+##4 Key Features Implemented
 
 ### 🎯 User Experience
 - Modern light theme design
@@ -153,16 +134,3 @@ This project is licensed under the MIT License.
 ## Support
 
 For technical support or questions, please contact the BFCB development team.
-
----
-
-**BFCB Quiz Application** - Empowering cricket knowledge through technology! 🏏
-\`\`\`
-
-```plaintext file=".env.example"
-# Supabase Configuration
-NEXT_PUBLIC_SUPABASE_URL=https://your-project-id.supabase.co
-NEXT_PUBLIC_SUPABASE_ANON_KEY=your-supabase-anon-key
-
-# Optional: For production deployment
-# NEXT_PUBLIC_SITE_URL=https://your-domain.com
