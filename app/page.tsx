@@ -429,6 +429,23 @@ export default function HomePage() {
             Admin Dashboard
           </Button>
         </div>
+
+        {/* Developer Credit */}
+        <div className="text-center mt-8 text-gray-500 text-sm">
+          <span className="gradient-text font-bold text-base animate-heartbeat">Developed by Mahfuz Uddin with ❤️</span>
+        </div>
+
+        {/* Contact Link */}
+        <div className="text-center mt-2">
+          <a
+            href="https://www.facebook.com/mahfux090"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="text-blue-600 hover:text-blue-800 font-medium text-sm inline-flex items-center gap-1 transition-colors duration-200"
+          >
+            Contact with Mahfuz <Users className="h-4 w-4" />
+          </a>
+        </div>
       </div>
     </div>
   )
