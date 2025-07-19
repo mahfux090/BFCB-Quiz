@@ -1,5 +1,6 @@
 import { type NextRequest, NextResponse } from "next/server"
 import { supabase } from "@/lib/supabase"
+import { revalidatePath } from "next/cache"
 
 export async function POST(request: NextRequest) {
   try {
@@ -43,6 +44,8 @@ export async function POST(request: NextRequest) {
     if (sessionError) {
       throw sessionError
     }
+
+    revalidatePath("/admin/dashboard") // Revalidate the admin dashboard page
 
     return NextResponse.json({ success: true })
   } catch (error) {
