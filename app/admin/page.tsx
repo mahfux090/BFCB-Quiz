@@ -109,6 +109,7 @@ export default function AdminLoginPage() {
                     onChange={(e) => setPassword(e.target.value)}
                     className="bg-white border-gray-300 text-gray-900 placeholder:text-gray-500 focus:border-red-500 focus:ring-red-500/50 h-12 text-base pl-10 pr-12 transition-all duration-300"
                     required
+                    autocomplete="current-password"
                   />
                   <Button
                     type="button"

@@ -1,5 +1,7 @@
 "use client"
 
+import type React from "react"
+
 import { useState, useEffect } from "react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -34,13 +36,17 @@ import {
   Target,
   Award,
   TrendingUp,
+  XCircle,
+  CheckCircle,
+  CircleDot,
 } from "lucide-react"
 import { useRouter } from "next/navigation"
+import type { Question, QuestionOption } from "@/lib/supabase" // Import Question and QuestionOption types
 
 export default function AdminDashboard() {
   const [isAuthenticated, setIsAuthenticated] = useState(false)
   const [activeTab, setActiveTab] = useState("overview")
-  const [questions, setQuestions] = useState([])
+  const [questions, setQuestions] = useState<Question[]>([]) // Use Question type
   const [responses, setResponses] = useState([])
   const [meritList, setMeritList] = useState([])
   const [loading, setLoading] = useState(true)
@@ -53,8 +59,16 @@ export default function AdminDashboard() {
 
   // Question management states
   const [isAddingQuestion, setIsAddingQuestion] = useState(false)
-  const [editingQuestion, setEditingQuestion] = useState(null)
-  const [newQuestion, setNewQuestion] = useState({ question: "", time_limit: 180 })
+  const [editingQuestion, setEditingQuestion] = useState<Question | null>(null) // Use Question type
+  const [newQuestion, setNewQuestion] = useState<{
+    question: string
+    time_limit: number
+    image_url: string
+    type: "text" | "mcq"
+    options: QuestionOption[]
+  }>({ question: "", time_limit: 180, image_url: "", type: "text", options: [] }) // Added type and options
+  const [imageFile, setImageFile] = useState<File | null>(null)
+  const [imagePreviewUrl, setImagePreviewUrl] = useState<string | null>(null)
 
   // Response evaluation states
   const [evaluatingResponse, setEvaluatingResponse] = useState(null)
@@ -147,7 +161,66 @@ export default function AdminDashboard() {
     router.push("/admin")
   }
 
+  const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (e.target.files && e.target.files[0]) {
+      const file = e.target.files[0]
+      setImageFile(file)
+      setImagePreviewUrl(URL.createObjectURL(file))
+    } else {
+      setImageFile(null)
+      setImagePreviewUrl(null)
+    }
+  }
+
+  const uploadImage = async (): Promise<string | null> => {
+    if (!imageFile) return null
+
+    const formData = new FormData()
+    formData.append("file", imageFile)
+
+    try {
+      const response = await fetch(`/api/upload-image?filename=${imageFile.name}`, {
+        method: "POST",
+        body: imageFile, // Send the file directly as body
+        headers: {
+          "Content-Type": imageFile.type, // Set content type for blob upload
+        },
+      })
+
+      if (!response.ok) {
+        const errorData = await response.json()
+        throw new Error(`Failed to upload image: ${errorData.error || response.statusText}`)
+      }
+      const data = await response.json()
+      return data.url // This is the public URL from Vercel Blob
+    } catch (error) {
+      console.error("Error uploading image:", error)
+      alert(`Image upload failed: ${error.message}`)
+      return null
+    }
+  }
+
   const handleAddQuestion = async () => {
+    let uploadedImageUrl = newQuestion.image_url // Start with existing URL if any
+
+    if (imageFile) {
+      uploadedImageUrl = await uploadImage()
+      if (!uploadedImageUrl) return // Stop if upload failed
+    }
+
+    // Validate MCQ options
+    if (newQuestion.type === "mcq") {
+      if (newQuestion.options.length < 2) {
+        alert("MCQ questions must have at least two options.")
+        return
+      }
+      const hasCorrectOption = newQuestion.options.some((opt) => opt.is_correct)
+      if (!hasCorrectOption) {
+        alert("MCQ questions must have at least one correct option.")
+        return
+      }
+    }
+
     try {
       const response = await fetch("/api/questions", {
         method: "POST",
@@ -155,16 +228,25 @@ export default function AdminDashboard() {
         body: JSON.stringify({
           question: newQuestion.question,
           timeLimit: newQuestion.time_limit,
+          imageUrl: uploadedImageUrl,
+          type: newQuestion.type,
+          options: newQuestion.options,
         }),
       })
 
       if (response.ok) {
         await fetchQuestions()
         setIsAddingQuestion(false)
-        setNewQuestion({ question: "", time_limit: 180 })
+        setNewQuestion({ question: "", time_limit: 180, image_url: "", type: "text", options: [] })
+        setImageFile(null)
+        setImagePreviewUrl(null)
+      } else {
+        const errorData = await response.json()
+        alert(`Failed to add question: ${errorData.error || response.statusText}`)
       }
     } catch (error) {
       console.error("Error adding question:", error)
+      alert(`Error adding question: ${error.message}`)
     }
   }
 
@@ -235,13 +317,44 @@ export default function AdminDashboard() {
     }
   }
 
-  const handleEditQuestionClick = (question) => {
+  const handleEditQuestionClick = (question: Question) => {
     setEditingQuestion(question)
-    setNewQuestion({ question: question.question, time_limit: question.time_limit })
+    setNewQuestion({
+      question: question.question,
+      time_limit: question.time_limit,
+      image_url: question.image_url || "",
+      type: question.type || "text",
+      options: question.question_options || [],
+    })
+    setImageFile(null) // Clear any selected file
+    setImagePreviewUrl(question.image_url || null) // Set preview to existing image
     setIsEditingQuestion(true)
   }
 
   const handleUpdateQuestion = async () => {
+    let uploadedImageUrl = newQuestion.image_url // Start with existing URL from state
+
+    if (imageFile) {
+      uploadedImageUrl = await uploadImage()
+      if (!uploadedImageUrl) return // Stop if upload failed
+    } else if (imagePreviewUrl === null && editingQuestion?.image_url) {
+      // If image was removed by clearing preview and there was an old image
+      uploadedImageUrl = null
+    }
+
+    // Validate MCQ options
+    if (newQuestion.type === "mcq") {
+      if (newQuestion.options.length < 2) {
+        alert("MCQ questions must have at least two options.")
+        return
+      }
+      const hasCorrectOption = newQuestion.options.some((opt) => opt.is_correct)
+      if (!hasCorrectOption) {
+        alert("MCQ questions must have at least one correct option.")
+        return
+      }
+    }
+
     try {
       const response = await fetch(`/api/questions/${editingQuestion.id}`, {
         method: "PUT",
@@ -249,6 +362,9 @@ export default function AdminDashboard() {
         body: JSON.stringify({
           question: newQuestion.question,
           timeLimit: newQuestion.time_limit,
+          imageUrl: uploadedImageUrl,
+          type: newQuestion.type,
+          options: newQuestion.options,
         }),
       })
 
@@ -256,10 +372,16 @@ export default function AdminDashboard() {
         await fetchQuestions()
         setIsEditingQuestion(false)
         setEditingQuestion(null)
-        setNewQuestion({ question: "", time_limit: 180 })
+        setNewQuestion({ question: "", time_limit: 180, image_url: "", type: "text", options: [] })
+        setImageFile(null)
+        setImagePreviewUrl(null)
+      } else {
+        const errorData = await response.json()
+        alert(`Failed to update question: ${errorData.error || response.statusText}`)
       }
     } catch (error) {
       console.error("Error updating question:", error)
+      alert(`Error updating question: ${error.message}`)
     }
   }
 
@@ -278,15 +400,47 @@ export default function AdminDashboard() {
         await fetchQuestions()
         setShowDeleteConfirm(false)
         setQuestionToDelete(null)
+      } else {
+        const errorData = await response.json()
+        alert(`Failed to delete question: ${errorData.error || response.statusText}`)
       }
     } catch (error) {
       console.error("Error deleting question:", error)
+      alert(`Error deleting question: ${error.message}`)
     }
   }
 
-  const handleViewQuestionClick = (question) => {
+  const handleViewQuestionClick = (question: Question) => {
     setEditingQuestion(question) // Reusing editingQuestion state for display
     setIsViewingQuestion(true)
+  }
+
+  const handleAddOption = () => {
+    setNewQuestion((prev) => ({
+      ...prev,
+      options: [...prev.options, { id: Date.now(), option_text: "", is_correct: false, question_id: 0 }], // id is temporary
+    }))
+  }
+
+  const handleOptionChange = (index: number, value: string) => {
+    const updatedOptions = [...newQuestion.options]
+    updatedOptions[index].option_text = value
+    setNewQuestion((prev) => ({ ...prev, options: updatedOptions }))
+  }
+
+  const handleCorrectOptionChange = (index: number) => {
+    const updatedOptions = newQuestion.options.map((opt, i) => ({
+      ...opt,
+      is_correct: i === index, // Only one correct option for now
+    }))
+    setNewQuestion((prev) => ({ ...prev, options: updatedOptions }))
+  }
+
+  const handleRemoveOption = (index: number) => {
+    setNewQuestion((prev) => ({
+      ...prev,
+      options: prev.options.filter((_, i) => i !== index),
+    }))
   }
 
   if (!isAuthenticated || loading) {
@@ -430,7 +584,7 @@ export default function AdminDashboard() {
                     Add Question
                   </Button>
                 </DialogTrigger>
-                <DialogContent className="bg-white border-gray-200 text-gray-900">
+                <DialogContent className="bg-white border-gray-200 text-gray-900 max-w-2xl">
                   <DialogHeader>
                     <DialogTitle>Add New Question</DialogTitle>
                     <DialogDescription className="text-gray-600">
@@ -438,6 +592,23 @@ export default function AdminDashboard() {
                     </DialogDescription>
                   </DialogHeader>
                   <div className="space-y-4">
+                    <div>
+                      <Label htmlFor="questionType">Question Type</Label>
+                      <Select
+                        value={newQuestion.type}
+                        onValueChange={(value: "text" | "mcq") =>
+                          setNewQuestion((prev) => ({ ...prev, type: value, options: [] }))
+                        }
+                      >
+                        <SelectTrigger className="bg-gray-50 border-gray-200 text-gray-900">
+                          <SelectValue placeholder="Select question type" />
+                        </SelectTrigger>
+                        <SelectContent className="bg-gray-50 border-gray-200">
+                          <SelectItem value="text">Text Answer</SelectItem>
+                          <SelectItem value="mcq">Multiple Choice</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
                     <div>
                       <Label htmlFor="question">Question</Label>
                       <Textarea
@@ -448,6 +619,45 @@ export default function AdminDashboard() {
                         className="bg-gray-50 border-gray-200 text-gray-900"
                       />
                     </div>
+                    {newQuestion.type === "mcq" && (
+                      <div className="space-y-3">
+                        <Label>Options</Label>
+                        {newQuestion.options.map((option, index) => (
+                          <div key={index} className="flex items-center gap-2">
+                            <Input
+                              placeholder={`Option ${index + 1}`}
+                              value={option.option_text}
+                              onChange={(e) => handleOptionChange(index, e.target.value)}
+                              className="flex-1 bg-gray-50 border-gray-200 text-gray-900"
+                            />
+                            <Button
+                              variant="outline"
+                              size="icon"
+                              onClick={() => handleCorrectOptionChange(index)}
+                              className={option.is_correct ? "bg-green-100 text-green-600 border-green-300" : ""}
+                              title="Mark as correct"
+                            >
+                              {option.is_correct ? (
+                                <CheckCircle className="h-4 w-4" />
+                              ) : (
+                                <CircleDot className="h-4 w-4" />
+                              )}
+                            </Button>
+                            <Button
+                              variant="outline"
+                              size="icon"
+                              onClick={() => handleRemoveOption(index)}
+                              title="Remove option"
+                            >
+                              <XCircle className="h-4 w-4 text-red-500" />
+                            </Button>
+                          </div>
+                        ))}
+                        <Button variant="outline" onClick={handleAddOption} className="w-full bg-transparent">
+                          <Plus className="h-4 w-4 mr-2" /> Add Option
+                        </Button>
+                      </div>
+                    )}
                     <div>
                       <Label htmlFor="timeLimit">Time Limit (seconds)</Label>
                       <Input
@@ -460,9 +670,48 @@ export default function AdminDashboard() {
                         className="bg-gray-50 border-gray-200 text-gray-900"
                       />
                     </div>
+                    <div>
+                      <Label htmlFor="imageUpload">Question Image (Optional)</Label>
+                      <Input
+                        id="imageUpload"
+                        type="file"
+                        accept="image/*"
+                        onChange={handleImageChange}
+                        className="bg-gray-50 border-gray-200 text-gray-900"
+                      />
+                      {imagePreviewUrl && (
+                        <div className="mt-2 relative w-32 h-32 border border-gray-200 rounded-md overflow-hidden">
+                          <img
+                            src={imagePreviewUrl || "/placeholder.svg"}
+                            alt="Image Preview"
+                            className="w-full h-full object-cover"
+                          />
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            className="absolute top-1 right-1 bg-white/70 hover:bg-white"
+                            onClick={() => {
+                              setImageFile(null)
+                              setImagePreviewUrl(null)
+                              setNewQuestion((prev) => ({ ...prev, image_url: "" })) // Clear image_url from state
+                            }}
+                          >
+                            <Trash2 className="h-4 w-4 text-red-500" />
+                          </Button>
+                        </div>
+                      )}
+                    </div>
                   </div>
                   <DialogFooter>
-                    <Button variant="outline" onClick={() => setIsAddingQuestion(false)}>
+                    <Button
+                      variant="outline"
+                      onClick={() => {
+                        setIsAddingQuestion(false)
+                        setNewQuestion({ question: "", time_limit: 180, image_url: "", type: "text", options: [] })
+                        setImageFile(null)
+                        setImagePreviewUrl(null)
+                      }}
+                    >
                       Cancel
                     </Button>
                     <Button onClick={handleAddQuestion} disabled={!newQuestion.question.trim()}>
@@ -480,7 +729,9 @@ export default function AdminDashboard() {
                   <CardHeader>
                     <div className="flex justify-between items-start">
                       <div className="flex-1">
-                        <CardTitle className="text-gray-800 text-lg">Question {question.id}</CardTitle>
+                        <CardTitle className="text-gray-800 text-lg">
+                          Question {question.id} ({question.type === "mcq" ? "Multiple Choice" : "Text Answer"})
+                        </CardTitle>
                         <CardDescription className="text-gray-600 mt-2">
                           Time Limit: {formatTime(question.time_limit)} | Created:{" "}
                           {new Date(question.created_at).toLocaleDateString()}
@@ -515,9 +766,40 @@ export default function AdminDashboard() {
                     </div>
                   </CardHeader>
                   <CardContent>
+                    {question.image_url && (
+                      <div className="mb-4">
+                        <img
+                          src={question.image_url || "/placeholder.svg"}
+                          alt="Question Image"
+                          className="max-w-full h-auto rounded-lg"
+                        />
+                      </div>
+                    )}
                     <div className="bg-gradient-to-r from-emerald-50 to-blue-50 p-4 rounded-lg border border-emerald-200">
                       <p className="text-gray-800 leading-relaxed">{question.question}</p>
                     </div>
+                    {question.type === "mcq" && question.question_options && (
+                      <div className="mt-4 space-y-2">
+                        <h4 className="font-medium text-gray-700">Options:</h4>
+                        {question.question_options.map((option) => (
+                          <div
+                            key={option.id}
+                            className={`flex items-center gap-2 p-2 rounded-md ${
+                              option.is_correct
+                                ? "bg-green-50 border border-green-200"
+                                : "bg-gray-50 border border-gray-200"
+                            }`}
+                          >
+                            {option.is_correct ? (
+                              <CheckCircle className="h-4 w-4 text-green-600" />
+                            ) : (
+                              <CircleDot className="h-4 w-4 text-gray-500" />
+                            )}
+                            <span className="text-gray-800">{option.option_text}</span>
+                          </div>
+                        ))}
+                      </div>
+                    )}
                   </CardContent>
                 </Card>
               ))}
@@ -564,6 +846,35 @@ export default function AdminDashboard() {
                       <h4 className="font-medium text-gray-300 mb-2">Question:</h4>
                       <div className="bg-blue-50 p-3 rounded-lg border border-blue-200">
                         <p className="text-blue-800 text-sm">{response.questions?.question || "Question not found"}</p>
+                        {response.questions?.image_url && (
+                          <img
+                            src={response.questions.image_url || "/placeholder.svg"}
+                            alt="Question Image"
+                            className="mt-2 max-w-full h-auto rounded-lg"
+                          />
+                        )}
+                        {response.questions?.type === "mcq" && response.questions?.question_options && (
+                          <div className="mt-4 space-y-2">
+                            <h4 className="font-medium text-gray-700">Options:</h4>
+                            {response.questions.question_options.map((option) => (
+                              <div
+                                key={option.id}
+                                className={`flex items-center gap-2 p-2 rounded-md ${
+                                  option.is_correct
+                                    ? "bg-green-50 border border-green-200"
+                                    : "bg-gray-50 border border-gray-200"
+                                }`}
+                              >
+                                {option.is_correct ? (
+                                  <CheckCircle className="h-4 w-4 text-green-600" />
+                                ) : (
+                                  <CircleDot className="h-4 w-4 text-gray-500" />
+                                )}
+                                <span className="text-gray-800">{option.option_text}</span>
+                              </div>
+                            ))}
+                          </div>
+                        )}
                       </div>
                     </div>
 
@@ -762,12 +1073,29 @@ export default function AdminDashboard() {
 
       {/* Edit Question Dialog */}
       <Dialog open={isEditingQuestion} onOpenChange={setIsEditingQuestion}>
-        <DialogContent className="bg-white border-gray-200 text-gray-900">
+        <DialogContent className="bg-white border-gray-200 text-gray-900 max-w-2xl">
           <DialogHeader>
             <DialogTitle>Edit Question</DialogTitle>
             <DialogDescription className="text-gray-600">Update the question text and time limit.</DialogDescription>
           </DialogHeader>
           <div className="space-y-4">
+            <div>
+              <Label htmlFor="questionType">Question Type</Label>
+              <Select
+                value={newQuestion.type}
+                onValueChange={(value: "text" | "mcq") =>
+                  setNewQuestion((prev) => ({ ...prev, type: value, options: [] }))
+                }
+              >
+                <SelectTrigger className="bg-gray-50 border-gray-200 text-gray-900">
+                  <SelectValue placeholder="Select question type" />
+                </SelectTrigger>
+                <SelectContent className="bg-gray-50 border-gray-200">
+                  <SelectItem value="text">Text Answer</SelectItem>
+                  <SelectItem value="mcq">Multiple Choice</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
             <div>
               <Label htmlFor="editQuestion">Question</Label>
               <Textarea
@@ -778,6 +1106,41 @@ export default function AdminDashboard() {
                 className="bg-gray-50 border-gray-200 text-gray-900"
               />
             </div>
+            {newQuestion.type === "mcq" && (
+              <div className="space-y-3">
+                <Label>Options</Label>
+                {newQuestion.options.map((option, index) => (
+                  <div key={option.id || index} className="flex items-center gap-2">
+                    <Input
+                      placeholder={`Option ${index + 1}`}
+                      value={option.option_text}
+                      onChange={(e) => handleOptionChange(index, e.target.value)}
+                      className="flex-1 bg-gray-50 border-gray-200 text-gray-900"
+                    />
+                    <Button
+                      variant="outline"
+                      size="icon"
+                      onClick={() => handleCorrectOptionChange(index)}
+                      className={option.is_correct ? "bg-green-100 text-green-600 border-green-300" : ""}
+                      title="Mark as correct"
+                    >
+                      {option.is_correct ? <CheckCircle className="h-4 w-4" /> : <CircleDot className="h-4 w-4" />}
+                    </Button>
+                    <Button
+                      variant="outline"
+                      size="icon"
+                      onClick={() => handleRemoveOption(index)}
+                      title="Remove option"
+                    >
+                      <XCircle className="h-4 w-4 text-red-500" />
+                    </Button>
+                  </div>
+                ))}
+                <Button variant="outline" onClick={handleAddOption} className="w-full bg-transparent">
+                  <Plus className="h-4 w-4 mr-2" /> Add Option
+                </Button>
+              </div>
+            )}
             <div>
               <Label htmlFor="editTimeLimit">Time Limit (seconds)</Label>
               <Input
@@ -788,9 +1151,49 @@ export default function AdminDashboard() {
                 className="bg-gray-50 border-gray-200 text-gray-900"
               />
             </div>
+            <div>
+              <Label htmlFor="editImageUpload">Question Image (Optional)</Label>
+              <Input
+                id="editImageUpload"
+                type="file"
+                accept="image/*"
+                onChange={handleImageChange}
+                className="bg-gray-50 border-gray-200 text-gray-900"
+              />
+              {(imagePreviewUrl || newQuestion.image_url) && (
+                <div className="mt-2 relative w-32 h-32 border border-gray-200 rounded-md overflow-hidden">
+                  <img
+                    src={imagePreviewUrl || newQuestion.image_url}
+                    alt="Image Preview"
+                    className="w-full h-full object-cover"
+                  />
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="absolute top-1 right-1 bg-white/70 hover:bg-white"
+                    onClick={() => {
+                      setImageFile(null)
+                      setImagePreviewUrl(null)
+                      setNewQuestion((prev) => ({ ...prev, image_url: "" })) // Clear image_url from state
+                    }}
+                  >
+                    <Trash2 className="h-4 w-4 text-red-500" />
+                  </Button>
+                </div>
+              )}
+            </div>
           </div>
           <DialogFooter>
-            <Button variant="outline" onClick={() => setIsEditingQuestion(false)}>
+            <Button
+              variant="outline"
+              onClick={() => {
+                setIsEditingQuestion(false)
+                setEditingQuestion(null)
+                setNewQuestion({ question: "", time_limit: 180, image_url: "", type: "text", options: [] })
+                setImageFile(null)
+                setImagePreviewUrl(null)
+              }}
+            >
               Cancel
             </Button>
             <Button onClick={handleUpdateQuestion} disabled={!newQuestion.question.trim()}>
@@ -803,18 +1206,47 @@ export default function AdminDashboard() {
 
       {/* View Question Dialog */}
       <Dialog open={isViewingQuestion} onOpenChange={setIsViewingQuestion}>
-        <DialogContent className="bg-white border-gray-200 text-gray-900">
+        <DialogContent className="bg-white border-gray-200 text-gray-900 max-w-2xl">
           <DialogHeader>
             <DialogTitle>View Question</DialogTitle>
             <DialogDescription className="text-gray-600">Full text of the question.</DialogDescription>
           </DialogHeader>
           <div className="space-y-4">
+            {editingQuestion?.image_url && (
+              <div className="mb-4">
+                <img
+                  src={editingQuestion.image_url || "/placeholder.svg"}
+                  alt="Question Image"
+                  className="max-w-full h-auto rounded-lg"
+                />
+              </div>
+            )}
             <div>
               <Label>Question</Label>
               <p className="bg-gray-50 p-3 rounded-lg border border-gray-200 text-gray-900">
                 {editingQuestion?.question}
               </p>
             </div>
+            {editingQuestion?.type === "mcq" && editingQuestion?.question_options && (
+              <div className="space-y-3">
+                <Label>Options</Label>
+                {editingQuestion.question_options.map((option) => (
+                  <div
+                    key={option.id}
+                    className={`flex items-center gap-2 p-2 rounded-md ${
+                      option.is_correct ? "bg-green-50 border border-green-200" : "bg-gray-50 border border-gray-200"
+                    }`}
+                  >
+                    {option.is_correct ? (
+                      <CheckCircle className="h-4 w-4 text-green-600" />
+                    ) : (
+                      <CircleDot className="h-4 w-4 text-gray-500" />
+                    )}
+                    <span className="text-gray-800">{option.option_text}</span>
+                  </div>
+                ))}
+              </div>
+            )}
             <div>
               <Label>Time Limit (seconds)</Label>
               <p className="bg-gray-50 p-3 rounded-lg border border-gray-200 text-gray-900">

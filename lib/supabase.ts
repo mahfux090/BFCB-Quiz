@@ -13,6 +13,14 @@ export interface User {
   created_at: string
 }
 
+export interface QuestionOption {
+  id: number
+  question_id: number
+  option_text: string
+  is_correct: boolean
+  created_at: string
+}
+
 export interface Question {
   id: number
   question: string
@@ -20,6 +28,9 @@ export interface Question {
   is_active: boolean
   created_at: string
   updated_at: string
+  image_url?: string
+  type: "text" | "mcq" // Added type
+  question_options?: QuestionOption[] // Added options for MCQ
 }
 
 export interface QuizSession {

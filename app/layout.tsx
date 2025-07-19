@@ -12,7 +12,7 @@ export const metadata: Metadata = {
   authors: [{ name: "BFCB Team" }],
   viewport: "width=device-width, initial-scale=1",
   themeColor: "#10b981",
-    generator: 'v0.dev'
+    generator: 'nimbot'
 }
 
 export default function RootLayout({

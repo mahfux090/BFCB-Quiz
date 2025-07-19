@@ -12,7 +12,7 @@ import type { Question } from "@/lib/supabase"
 export default function QuizPage() {
   const [questions, setQuestions] = useState<Question[]>([])
   const [currentQuestion, setCurrentQuestion] = useState(0)
-  const [answers, setAnswers] = useState<string[]>([])
+  const [answers, setAnswers] = useState<string[]>([]) // Stores selected option text for MCQ, or text for text questions
   const [timeLeft, setTimeLeft] = useState(0)
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [sessionInfo, setSessionInfo] = useState<any>(null)
@@ -375,6 +375,15 @@ export default function QuizPage() {
             </CardTitle>
           </CardHeader>
           <CardContent className="space-y-6">
+            {currentQ.image_url && (
+              <div className="mb-4">
+                <img
+                  src={currentQ.image_url || "/placeholder.svg"}
+                  alt="Question Image"
+                  className="max-w-full h-auto rounded-lg"
+                />
+              </div>
+            )}
             <div className="bg-gradient-to-r from-emerald-50 to-blue-50 p-6 rounded-xl border border-emerald-200">
               <p className="text-gray-800 leading-relaxed text-lg font-medium">{currentQ.question}</p>
             </div>
@@ -384,15 +393,43 @@ export default function QuizPage() {
                 <Zap className="h-4 w-4 text-yellow-600" />
                 Your Expert Answer
               </label>
-              <Textarea
-                placeholder="Share your detailed cricket knowledge and insights here..."
-                value={answers[currentQuestion]}
-                onChange={(e) => handleAnswerChange(e.target.value)}
-                className="min-h-[150px] bg-white border-gray-300 text-gray-900 placeholder:text-gray-500 focus:border-emerald-500 focus:ring-emerald-500/50 text-base resize-none transition-all duration-300"
-                disabled={isSubmitting}
-              />
+              {currentQ.type === "text" ? (
+                <Textarea
+                  placeholder="Share your detailed cricket knowledge and insights here..."
+                  value={answers[currentQuestion]}
+                  onChange={(e) => handleAnswerChange(e.target.value)}
+                  className="min-h-[150px] bg-white border-gray-300 text-gray-900 placeholder:text-gray-500 focus:border-emerald-500 focus:ring-emerald-500/50 text-base resize-none transition-all duration-300"
+                  disabled={isSubmitting}
+                />
+              ) : (
+                <div className="space-y-3">
+                  {currentQ.question_options?.map((option) => (
+                    <label
+                      key={option.id}
+                      className={`flex items-center gap-3 p-4 rounded-lg border cursor-pointer transition-colors duration-200 ${
+                        answers[currentQuestion] === option.option_text
+                          ? "bg-blue-50 border-blue-300 ring-2 ring-blue-500"
+                          : "bg-gray-50 border-gray-200 hover:bg-gray-100"
+                      }`}
+                    >
+                      <input
+                        type="radio"
+                        name={`question-${currentQ.id}`}
+                        value={option.option_text}
+                        checked={answers[currentQuestion] === option.option_text}
+                        onChange={(e) => handleAnswerChange(e.target.value)}
+                        className="h-5 w-5 text-blue-600 focus:ring-blue-500"
+                        disabled={isSubmitting}
+                      />
+                      <span className="text-gray-800 text-base font-medium">{option.option_text}</span>
+                    </label>
+                  ))}
+                </div>
+              )}
               <div className="flex justify-between items-center text-sm">
-                <span className="text-gray-500">{answers[currentQuestion]?.length || 0} characters</span>
+                <span className="text-gray-500">
+                  {currentQ.type === "text" ? `${answers[currentQuestion]?.length || 0} characters` : ""}
+                </span>
                 <span className="text-gray-500">Time limit: {formatTime(currentQ.time_limit)}</span>
               </div>
             </div>

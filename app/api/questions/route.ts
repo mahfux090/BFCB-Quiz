@@ -1,11 +1,15 @@
 import { type NextRequest, NextResponse } from "next/server"
 import { supabase } from "@/lib/supabase"
+import type { QuestionOption } from "@/lib/supabase"
 
 export async function GET() {
   try {
     const { data: questions, error } = await supabase
       .from("questions")
-      .select("*")
+      .select(`
+        *,
+        question_options(id, option_text, is_correct)
+      `) // Select options as well
       .eq("is_active", true)
       .order("id", { ascending: true })
 
@@ -22,7 +26,7 @@ export async function GET() {
 
 export async function POST(request: NextRequest) {
   try {
-    const { question, timeLimit } = await request.json()
+    const { question, timeLimit, imageUrl, type, options } = await request.json() // Added type and options
 
     const { data: newQuestion, error } = await supabase
       .from("questions")
@@ -31,6 +35,8 @@ export async function POST(request: NextRequest) {
           question,
           time_limit: timeLimit,
           is_active: true,
+          image_url: imageUrl,
+          type: type || "text", // Default to 'text' if not provided
         },
       ])
       .select()
@@ -38,6 +44,24 @@ export async function POST(request: NextRequest) {
 
     if (error) {
       throw error
+    }
+
+    // If it's an MCQ question, insert options
+    if (type === "mcq" && options && options.length > 0) {
+      const optionsToInsert = options.map((opt: QuestionOption) => ({
+        question_id: newQuestion.id,
+        option_text: opt.option_text,
+        is_correct: opt.is_correct,
+      }))
+
+      const { error: optionsError } = await supabase.from("question_options").insert(optionsToInsert)
+
+      if (optionsError) {
+        // Consider rolling back the question creation if options fail
+        console.error("Error inserting question options:", optionsError)
+        await supabase.from("questions").delete().eq("id", newQuestion.id) // Rollback
+        throw optionsError
+      }
     }
 
     return NextResponse.json({ question: newQuestion })
