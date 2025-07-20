@@ -906,7 +906,7 @@ export default function AdminDashboard() {
                                 admin_notes: response.evaluations[0].admin_notes || "",
                               })
                             } else {
-                              setEvaluationData({ score: 1, status: "correct", admin_notes: "" }) // Default for new evaluation
+                              setEvaluationData({ score: 0, status: "correct", admin_notes: "" }) // Default for new evaluation
                             }
                           }}
                           className="bg-gradient-to-r from-emerald-500 to-blue-500 hover:from-emerald-600 hover:to-blue-600"
