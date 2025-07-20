@@ -1,6 +1,9 @@
 import { type NextRequest, NextResponse } from "next/server"
 import { supabase } from "@/lib/supabase"
 import type { QuestionOption } from "@/lib/supabase"
+import { revalidatePath } from "next/cache"
+
+export const dynamic = "force-dynamic"
 
 export async function GET() {
   try {
@@ -46,6 +49,8 @@ export async function POST(request: NextRequest) {
       throw error
     }
 
+    revalidatePath("/admin/dashboard")
+
     // If it's an MCQ question, insert options
     if (type === "mcq" && options && options.length > 0) {
       const optionsToInsert = options.map((opt: QuestionOption) => ({
@@ -62,6 +67,8 @@ export async function POST(request: NextRequest) {
         await supabase.from("questions").delete().eq("id", newQuestion.id) // Rollback
         throw optionsError
       }
+
+      revalidatePath("/admin/dashboard")
     }
 
     return NextResponse.json({ question: newQuestion })

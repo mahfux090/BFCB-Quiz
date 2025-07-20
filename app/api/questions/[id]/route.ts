@@ -1,6 +1,7 @@
 import { type NextRequest, NextResponse } from "next/server"
 import { supabase } from "@/lib/supabase"
 import type { QuestionOption } from "@/lib/supabase"
+import { revalidatePath } from "next/cache"
 
 export async function PUT(request: NextRequest, { params }: { params: { id: string } }) {
   try {
@@ -24,6 +25,8 @@ export async function PUT(request: NextRequest, { params }: { params: { id: stri
       throw error
     }
 
+    revalidatePath("/admin/dashboard")
+
     // Handle options for MCQ questions
     if (type === "mcq") {
       // Delete existing options for this question
@@ -32,6 +35,8 @@ export async function PUT(request: NextRequest, { params }: { params: { id: stri
         console.error("Error deleting old question options:", deleteError)
         throw deleteError
       }
+
+      revalidatePath("/admin/dashboard")
 
       // Insert new options
       if (options && options.length > 0) {
@@ -46,6 +51,8 @@ export async function PUT(request: NextRequest, { params }: { params: { id: stri
           console.error("Error inserting new question options:", insertError)
           throw insertError
         }
+
+        revalidatePath("/admin/dashboard")
       }
     } else {
       // If type changes from MCQ to Text, delete all associated options
@@ -76,6 +83,8 @@ export async function DELETE(request: NextRequest, { params }: { params: { id: s
     if (error) {
       throw error
     }
+
+    revalidatePath("/admin/dashboard")
 
     return NextResponse.json({ success: true })
   } catch (error) {

@@ -28,7 +28,7 @@ export async function POST(request: NextRequest) {
 
       if (error) throw error
 
-      revalidatePath("/admin/dashboard") // Revalidate the admin dashboard page
+      revalidatePath("/admin/dashboard")
     } else {
       // Create new evaluation
       const { error } = await supabase.from("evaluations").insert([
@@ -43,7 +43,7 @@ export async function POST(request: NextRequest) {
 
       if (error) throw error
 
-      revalidatePath("/admin/dashboard") // Revalidate the admin dashboard page
+      revalidatePath("/admin/dashboard")
     }
 
     return NextResponse.json({ success: true })
