@@ -479,7 +479,9 @@ export default function AdminDashboard() {
       {/* Main Content */}
       <div className="max-w-7xl mx-auto p-6">
         <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
-          <TabsList className="grid w-full grid-cols-4 bg-white/80 border-gray-200">
+          <TabsList className="grid w-full grid-cols-2 md:grid-cols-4 bg-white/80 border-gray-200">
+            {" "}
+            {/* Adjusted for responsiveness */}
             <TabsTrigger
               value="overview"
               className="data-[state=active]:bg-white data-[state=active]:text-gray-900 text-gray-600"
@@ -882,102 +884,99 @@ export default function AdminDashboard() {
                       </div>
                     </div>
 
-                    {console.log(
-                      "Condition check for response ID:",
-                      response.id,
-                      "Is evaluated:",
-                      !response.evaluations || response.evaluations.length === 0,
-                    )}
-                    {console.log(
-                      "Condition for response ID:",
-                      response.id,
-                      "is response.evaluations.length === 0:",
-                      response.evaluations.length === 0,
-                    )}
-                    {response.evaluations.length === 0 ? (
-                      <Dialog
-                        open={evaluatingResponse === response.id}
-                        onOpenChange={(open) => !open && setEvaluatingResponse(null)}
-                      >
-                        <DialogTrigger asChild>
-                          <Button
-                            onClick={() => setEvaluatingResponse(response.id)}
-                            className="bg-gradient-to-r from-emerald-500 to-blue-500 hover:from-emerald-600 hover:to-blue-600"
-                          >
-                            <Target className="h-4 w-4 mr-2" />
-                            Evaluate Response
-                          </Button>
-                        </DialogTrigger>
-                        <DialogContent className="bg-white border-gray-200 text-gray-900">
-                          <DialogHeader>
-                            <DialogTitle>Evaluate Response</DialogTitle>
-                            <DialogDescription className="text-gray-600">
-                              Provide a score and feedback for this answer.
-                            </DialogDescription>
-                          </DialogHeader>
-                          <div className="space-y-4">
-                            <div>
-                              <Label htmlFor="score">Score (0-10)</Label>
-                              <Input
-                                id="score"
-                                type="number"
-                                min="0"
-                                max="10"
-                                value={evaluationData.score}
-                                onChange={(e) =>
-                                  setEvaluationData({ ...evaluationData, score: Number.parseInt(e.target.value) })
-                                }
-                                className="bg-gray-50 border-gray-200 text-gray-900"
-                              />
-                            </div>
-                            <div>
-                              <Label htmlFor="status">Status</Label>
-                              <Select
-                                value={evaluationData.status}
-                                onValueChange={(value) => setEvaluationData({ ...evaluationData, status: value })}
-                              >
-                                <SelectTrigger className="bg-gray-50 border-gray-200 text-gray-900">
-                                  <SelectValue />
-                                </SelectTrigger>
-                                <SelectContent className="bg-gray-50 border-gray-200">
-                                  <SelectItem value="correct">Correct</SelectItem>
-                                  <SelectItem value="incorrect">Incorrect</SelectItem>
-                                  <SelectItem value="partial">Partial</SelectItem>
-                                </SelectContent>
-                              </Select>
-                            </div>
-                            <div>
-                              <Label htmlFor="notes">Admin Notes</Label>
-                              <Textarea
-                                id="notes"
-                                placeholder="Optional feedback..."
-                                value={evaluationData.admin_notes}
-                                onChange={(e) => setEvaluationData({ ...evaluationData, admin_notes: e.target.value })}
-                                className="bg-gray-50 border-gray-200 text-gray-900"
-                              />
-                            </div>
+                    {/* Always show evaluate button, pre-fill if already evaluated */}
+                    <Dialog
+                      open={evaluatingResponse === response.id}
+                      onOpenChange={(open) => {
+                        if (!open) {
+                          setEvaluatingResponse(null)
+                          setEvaluationData({ score: 5, status: "correct", admin_notes: "" }) // Reset form on close
+                        }
+                      }}
+                    >
+                      <DialogTrigger asChild>
+                        <Button
+                          onClick={() => {
+                            setEvaluatingResponse(response.id)
+                            // Pre-fill if already evaluated
+                            if (response.evaluations && response.evaluations.length > 0) {
+                              setEvaluationData({
+                                score: response.evaluations[0].score,
+                                status: response.evaluations[0].status,
+                                admin_notes: response.evaluations[0].admin_notes || "",
+                              })
+                            } else {
+                              setEvaluationData({ score: 5, status: "correct", admin_notes: "" }) // Default for new evaluation
+                            }
+                          }}
+                          className="bg-gradient-to-r from-emerald-500 to-blue-500 hover:from-emerald-600 hover:to-blue-600"
+                        >
+                          <Target className="h-4 w-4 mr-2" />
+                          {response.evaluations && response.evaluations.length > 0
+                            ? "Edit Evaluation"
+                            : "Evaluate Response"}
+                        </Button>
+                      </DialogTrigger>
+                      <DialogContent className="bg-white border-gray-200 text-gray-900">
+                        <DialogHeader>
+                          <DialogTitle>Evaluate Response</DialogTitle>
+                          <DialogDescription className="text-gray-600">
+                            Provide a score and feedback for this answer.
+                          </DialogDescription>
+                        </DialogHeader>
+                        <div className="space-y-4">
+                          <div>
+                            <Label htmlFor="score">Score (0-10)</Label>
+                            <Input
+                              id="score"
+                              type="number"
+                              min="0"
+                              max="10"
+                              value={evaluationData.score}
+                              onChange={(e) =>
+                                setEvaluationData({ ...evaluationData, score: Number.parseInt(e.target.value) })
+                              }
+                              className="bg-gray-50 border-gray-200 text-gray-900"
+                            />
                           </div>
-                          <DialogFooter>
-                            <Button variant="outline" onClick={() => setEvaluatingResponse(null)}>
-                              Cancel
-                            </Button>
-                            <Button onClick={() => handleEvaluateResponse(response.id)}>
-                              <Save className="h-4 w-4 mr-2" />
-                              Save Evaluation
-                            </Button>
-                          </DialogFooter>
-                        </DialogContent>
-                      </Dialog>
-                    ) : (
-                      <div className="bg-green-50 p-3 rounded-lg border border-green-200">
-                        <p className="text-green-800 text-sm">
-                          <strong>Evaluated:</strong> Score {response.evaluations[0].score}/10
-                          {response.evaluations[0].admin_notes && (
-                            <span className="block mt-1">Notes: {response.evaluations[0].admin_notes}</span>
-                          )}
-                        </p>
-                      </div>
-                    )}
+                          <div>
+                            <Label htmlFor="status">Status</Label>
+                            <Select
+                              value={evaluationData.status}
+                              onValueChange={(value) => setEvaluationData({ ...evaluationData, status: value })}
+                            >
+                              <SelectTrigger className="bg-gray-50 border-gray-200 text-gray-900">
+                                <SelectValue />
+                              </SelectTrigger>
+                              <SelectContent className="bg-gray-50 border-gray-200">
+                                <SelectItem value="correct">Correct</SelectItem>
+                                <SelectItem value="incorrect">Incorrect</SelectItem>
+                                <SelectItem value="partial">Partial</SelectItem>
+                              </SelectContent>
+                            </Select>
+                          </div>
+                          <div>
+                            <Label htmlFor="notes">Admin Notes</Label>
+                            <Textarea
+                              id="notes"
+                              placeholder="Optional feedback..."
+                              value={evaluationData.admin_notes}
+                              onChange={(e) => setEvaluationData({ ...evaluationData, admin_notes: e.target.value })}
+                              className="bg-gray-50 border-gray-200 text-gray-900"
+                            />
+                          </div>
+                        </div>
+                        <DialogFooter>
+                          <Button variant="outline" onClick={() => setEvaluatingResponse(null)}>
+                            Cancel
+                          </Button>
+                          <Button onClick={() => handleEvaluateResponse(response.id)}>
+                            <Save className="h-4 w-4 mr-2" />
+                            Save Evaluation
+                          </Button>
+                        </DialogFooter>
+                      </DialogContent>
+                    </Dialog>
                   </CardContent>
                 </Card>
               ))}
