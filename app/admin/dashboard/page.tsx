@@ -890,7 +890,7 @@ export default function AdminDashboard() {
                       onOpenChange={(open) => {
                         if (!open) {
                           setEvaluatingResponse(null)
-                          setEvaluationData({ score: 5, status: "correct", admin_notes: "" }) // Reset form on close
+                          setEvaluationData({ score: 1, status: "correct", admin_notes: "" }) // Reset form on close
                         }
                       }}
                     >
@@ -906,7 +906,7 @@ export default function AdminDashboard() {
                                 admin_notes: response.evaluations[0].admin_notes || "",
                               })
                             } else {
-                              setEvaluationData({ score: 5, status: "correct", admin_notes: "" }) // Default for new evaluation
+                              setEvaluationData({ score: 1, status: "correct", admin_notes: "" }) // Default for new evaluation
                             }
                           }}
                           className="bg-gradient-to-r from-emerald-500 to-blue-500 hover:from-emerald-600 hover:to-blue-600"
@@ -931,7 +931,7 @@ export default function AdminDashboard() {
                               id="score"
                               type="number"
                               min="0"
-                              max="10"
+                              max="5"
                               value={evaluationData.score}
                               onChange={(e) =>
                                 setEvaluationData({ ...evaluationData, score: Number.parseInt(e.target.value) })
